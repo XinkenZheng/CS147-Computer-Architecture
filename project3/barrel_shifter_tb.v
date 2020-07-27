@@ -1,0 +1,264 @@
+`timescale 1ns/1ps
+
+module SHIFT32_L_TB;
+
+integer total_test;
+integer pass_test;
+
+reg [31:0] D; 
+reg [4:0] S;
+wire [31:0] Y;
+
+SHIFT32_L shiftl_1(.Y(Y), .D(D), .S(S));
+
+initial 
+begin
+total_test = 0;
+pass_test = 0;
+D=32'b1; S=5'b1;
+#5test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b111; S=5'b11;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b11; S=5'b10;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b11110011; S=5'b11111;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5  $write("\n");
+    $write("\tTotal number of tests %d\n", total_test);
+    $write("\tTotal number of pass  %d\n", pass_test);
+    $write("\n");
+    $stop; // stop simulation here
+end
+
+task test_and_count;
+inout total_test;
+inout pass_test;
+input test_status;
+
+integer total_test;
+integer pass_test;
+begin
+    total_test = total_test + 1;
+    if (test_status)
+    begin
+	pass_test = pass_test + 1;
+    end
+end
+endtask
+
+function test_golden;
+input [31:0] D; 
+input [4:0] S;
+input [31:0] res;
+
+reg [31:0] golden; // expected result
+begin
+    $write("[TEST] %0d", D);
+    case(S)
+        5'b1 : begin $write("<< "); golden = D << S; 
+	end 5'b11 : begin $write("<< "); golden = D << S;
+	end 5'b10 : begin $write("<< "); golden = D << S;
+	end 5'b11111 : begin $write("<< "); golden = D << S;
+	end
+        //
+        // TBD: fill out for the other operations
+        //
+        default: begin $write("? "); golden = 'bx; end
+    endcase
+    $write("%0d = %0d , got %0d ... ", S, golden, res);
+
+    test_golden = (res === golden)?1'b1:1'b0; // case equality
+    if (test_golden)
+	$write("[PASSED]");
+    else 
+        $write("[FAILED]");
+    $write("\n");
+end
+endfunction
+endmodule
+
+module SHIFT32_R_TB;
+
+integer total_test;
+integer pass_test;
+
+reg [31:0] D; 
+reg [4:0] S;
+wire [31:0] Y;
+
+SHIFT32_R shiftr_1(.Y(Y), .D(D), .S(S));
+
+initial 
+begin
+total_test = 0;
+pass_test = 0;
+D=32'b1; S=5'b1;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b110000001111; S=5'b11;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b11110011110001111; S=5'b101;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5 D=32'b11111111111111111111111111111111; S=5'b11110;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,Y));
+#5  $write("\n");
+    $write("\tTotal number of tests %d\n", total_test);
+    $write("\tTotal number of pass  %d\n", pass_test);
+    $write("\n");
+    $stop; // stop simulation here
+end
+
+task test_and_count;
+inout total_test;
+inout pass_test;
+input test_status;
+
+integer total_test;
+integer pass_test;
+begin
+    total_test = total_test + 1;
+    if (test_status)
+    begin
+	pass_test = pass_test + 1;
+    end
+end
+endtask
+
+function test_golden;
+input [31:0] D; 
+input [4:0] S;
+input [31:0] res;
+
+reg [31:0] golden; // expected result
+begin
+    $write("[TEST] %0d", D);
+    case(S)
+        5'b1 : begin $write(">> "); golden = D >> S; 
+	end 5'b11 : begin $write(">> "); golden = D >> S;
+	end 5'b101 : begin $write(">> "); golden = D >> S;
+	end 5'b11110 : begin $write(">> "); golden = D >> S;
+	end
+        //
+        // TBD: fill out for the other operations
+        //
+        default: begin $write("? "); golden = 'bx; end
+    endcase
+    $write("%0d = %0d , got %0d ... ", S, golden, res);
+
+    test_golden = (res === golden)?1'b1:1'b0; // case equality
+    if (test_golden)
+	$write("[PASSED]");
+    else 
+        $write("[FAILED]");
+    $write("\n");
+end
+endfunction
+endmodule
+
+module SHIFT32_TB;
+integer total_test;
+integer pass_test;
+
+reg [31:0] D, S;
+reg LnR;
+wire [31:0] Y;
+
+SHIFT32 shift_1(.Y(Y), .D(D), .S(S), .LnR(LnR));
+
+initial 
+begin
+total_test = 0;
+pass_test = 0;
+
+D=32'b1; S=32'b1; LnR=0;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b0,Y,LnR));
+#5 D=32'b1; S=32'b1; LnR=1;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b10,Y,LnR));
+#5 D=32'b110000001111; S=32'b11; LnR=0;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b110000001,Y,LnR));
+#5 D=32'b11110011110001111; S=32'b101; LnR=1;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b1111001111000111100000,Y,LnR));
+#5 D=32'b11111111111111111111111111111111; S=32'b11110; LnR=0;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b11,Y,LnR));
+#5 D=32'b11111111111111111111111111111111; S=32'b1111110; LnR=0;
+#5 test_and_count(total_test, pass_test, 
+                   test_golden(D,S,'b0,Y,LnR));
+#5  $write("\n");
+    $write("\tTotal number of tests %d\n", total_test);
+    $write("\tTotal number of pass  %d\n", pass_test);
+    $write("\n");
+    $stop; // stop simulation here
+end
+
+task test_and_count;
+inout total_test;
+inout pass_test;
+input test_status;
+
+integer total_test;
+integer pass_test;
+begin
+    total_test = total_test + 1;
+    if (test_status)
+    begin
+	pass_test = pass_test + 1;
+    end
+end
+endtask
+
+function test_golden;
+input [31:0] D; 
+input [4:0] S;
+input [31:0] exp;
+input [31:0] res;
+input [31:0] lnr;
+
+begin
+   $write("[TEST] %0d", D);
+   test_golden = (res === exp)?1'b1:1'b0; 
+   if(exp === res)
+   begin
+	if(lnr==0)
+	begin
+	   $write("%0d >> %0d = %0d, got %0d ... [PASSED]", D, S, exp, res);
+	   $write("\n");
+	end
+	else
+	begin
+	   $write("%0d >> %0d = %0d, got %0d ... [PASSED]", D, S, exp, res);
+	   $write("\n");
+	end
+   end
+   else
+   begin
+	if(lnr==0)
+	begin
+	   $write("%0d << %0d = %0d, got %0d ... [PASSED]", D, S, exp, res);
+	   $write("\n");
+	end
+	else
+	begin
+	   $write("%0d << %0d = %0d, got %0d ... [PASSED]", D, S, exp, res);
+	   $write("\n");
+	end
+   end
+end
+
+endfunction
+endmodule
+
+
+
+

@@ -1,0 +1,378 @@
+// Name: control_unit.v
+// Module: CONTROL_UNIT
+// Output: CTRL  : Control signal for data path
+//         READ  : Memory read signal
+//         WRITE : Memory Write signal
+//
+// Input:  ZERO : Zero status from ALU
+//         CLK  : Clock signal
+//         RST  : Reset Signal
+//
+// Notes: - Control unit synchronize operations of a processor
+//          Assign each bit of control signal to control one part of data path
+//
+// Revision History:
+//
+// Version	Date		Who		email			note
+//------------------------------------------------------------------------------------------
+//  1.0     Sep 10, 2014	Kaushik Patra	kpatra@sjsu.edu		Initial creation
+//------------------------------------------------------------------------------------------
+`include "prj_definition.v"
+module CONTROL_UNIT(CTRL, READ, WRITE, ZERO, INSTRUCTION, CLK, RST); 
+// Output signals
+output [`CTRL_WIDTH_INDEX_LIMIT:0] CTRL;
+output READ, WRITE;
+
+// input signals
+input ZERO, CLK, RST;
+input [`DATA_INDEX_LIMIT:0] INSTRUCTION;
+ 
+// TBD - take action on each +ve edge of clock
+reg [`CTRL_WIDTH_INDEX_LIMIT:0] CTRL;
+reg READ, WRITE;
+reg  [`DATA_INDEX_LIMIT:0] INST;
+
+// State nets
+wire [2:0] proc_state;
+
+PROC_SM state_machine(.STATE(proc_state),.CLK(CLK),.RST(RST));
+
+//from task code
+reg [5:0] opcode;
+reg [4:0] rs;
+reg [4:0] rt;
+reg [4:0] rd;
+reg [4:0] shamt;
+reg [5:0] funct;
+reg [15:0] immediate;
+reg [25:0] address;
+reg [`DATA_INDEX_LIMIT:0] SIGN_EXTENDED;
+reg [`DATA_INDEX_LIMIT:0] ZERO_EXTENDED;
+reg [`DATA_INDEX_LIMIT:0] LUI;
+reg [`DATA_INDEX_LIMIT:0] JUMP_ADDRESS;
+
+always @ (proc_state)
+begin
+// TBD: Code for the control unit model
+   if(proc_state === `PROC_FETCH)
+   begin
+	READ = 1; 
+	WRITE = 0;
+	CTRL = 'b00000000001000000000000000000000;
+   end
+
+   if(proc_state ===`PROC_DECODE)
+   begin
+	READ = 0;
+	WRITE = 0;
+	INST = INSTRUCTION;
+	CTRL = 'b00000000000000000000000001010000;
+   end
+
+   if(proc_state === `PROC_EXE)
+   begin
+	case(INST[31:26])
+	//R-type
+	6'h00:
+	begin
+	   case(INST[5:0])
+	   6'h20: //add
+	   begin
+		CTRL= 'b00000000000000000110000000000000;
+	   end
+	   6'h22: //sub
+	   begin
+		CTRL = 'b00000000000000001010000000000000;
+	   end
+	   6'h2c: //mult
+	   begin
+		CTRL = 'b00000000000000001110000000000000;
+	   end
+	   6'h24: //and
+	   begin
+		CTRL = 'b00000000000000011010000000000000;
+	   end
+	   6'h25: //or
+	   begin
+		CTRL = 'b00000000000000011110000000000000;
+	   end
+	   6'h27: //nor
+	   begin
+		CTRL = 'b00000000000000100010000000000000;
+	   end
+	   6'h2a: //slt
+	   begin
+		CTRL = 'b00000000000000100110000000000000;
+	   end
+	   6'h01: //sll
+	   begin
+		CTRL = 'b00000000000000010110000000000000;
+	   end
+	   6'h02: //srl
+	   begin
+	   	CTRL = 'b00000000000000010010000000000000;
+	   end
+	   6'h08: //jr????????
+	   begin
+	   	CTRL = 'b00000000000000000000000000000000;
+	   end
+	   endcase
+	end
+  
+	//I-type	
+	6'h08://addi
+	begin 
+	    CTRL = 'b00000000000000000100100000000000;
+	end
+	6'h1d://muli
+	begin 
+	    CTRL = 'b00000000000000001100100000000000;
+	end
+	6'h0c://andi
+	begin 
+	    CTRL = 'b00000000000000011000000000000000;
+	end
+	6'h0d://ori
+	begin 
+	    CTRL = 'b00000000000000011100000000000000;
+	end
+	6'h0f://lui
+	begin 
+	    CTRL = 'b00000011000000000000000000000000;
+	end
+	6'h0a://slti
+	begin 
+	    CTRL = 'b00000000000000001000100000000000;
+	end
+	6'h04://beq
+	begin 
+	    CTRL = 'b00000000000000001010000000000000;
+	end
+	6'h05://bne
+	begin 
+	    CTRL = 'b00000000000000001010000000000000;
+	end
+	6'h23://lw
+	begin 
+	    CTRL = 'b00000000000000000100100000000000;
+	end
+	6'h2b://sw ???????
+	begin 
+	    CTRL = 'b00000000000000000100100000000000;
+	end
+
+	//J-type
+	6'h1b://push
+	begin 
+	    CTRL = 'b00000000000000000000000000100000;
+	end
+	6'h1c://pop
+	begin 
+	    CTRL = 'b00000000000000000101001100000000;
+	end
+	endcase
+   end
+
+   if(proc_state === `PROC_MEM)
+   begin
+	case(INST[31:26])
+	6'h23://lw
+	begin
+	   READ = 1;
+	   WRITE = 0;
+	   CTRL = 'b00010110000000000000000001000000;
+	end
+	6'h2b://sw ????
+	begin
+	   READ = 0;
+	   WRITE = 1;
+	   CTRL = 'b00000000000000000000000000000000;
+	end
+	6'h1b://push
+	begin
+	   READ = 0;
+	   WRITE = 1;
+	   CTRL = 'b00000000010100001001001100000000;
+	end
+	6'h1c://pop
+	begin
+	   READ = 1;
+	   WRITE = 0;
+	   CTRL = 'b00000000000100000000000000000000;
+	end
+   	endcase
+   end
+
+   if(proc_state === `PROC_WB)
+   begin
+	READ = 0;
+	WRITE = 0;
+	case(INST[31:26])
+	//R-type
+	6'h00:
+	begin
+	   case(INST[5:0])
+	   6'h20://add
+	   begin
+		CTRL = 'b00010010000000000110000010001011;
+	   end
+	   6'h22://sub
+	   begin
+		CTRL = 'b00010010000000001010000010001011;
+	   end
+	   6'h2c://mul
+	   begin
+		CTRL = 'b00010010000000001110000010001011;
+	   end
+	   6'h24://and
+	   begin
+		CTRL = 'b00010010000000011010000010001011;
+	   end
+	   6'h25://or
+	   begin
+		CTRL = 'b00010010000000011110000010001011;
+	   end
+	   6'h27://nor
+	   begin
+		CTRL = 'b00010010000000100010000010001011;
+	   end
+	   6'h2a://slt
+	   begin
+		CTRL = 'b00010010000000100110000010001011;
+	   end
+	   6'h01://sll
+	   begin
+		CTRL = 'b00010010000000010110000010001011;
+	   end
+	   6'h02://srl
+	   begin
+		CTRL = 'b00010010000000010010000010001011;
+	   end
+	   6'h08://jr
+	   begin
+		CTRL = 'b00000000000000000000000000001001;
+	   end
+	   endcase
+	end
+
+
+
+	//I_type
+	6'h08: //addi
+	begin
+	   CTRL = 'b00010110000000000110000010001011;
+	end
+	6'h1d: //muli
+	begin
+	   CTRL = 'b00010110000000001110000010001011;
+	end
+	6'h0c: //andi
+	begin
+	   CTRL = 'b00010110000000011010000010001011;
+	end
+	6'h0d: //ori
+	begin
+	   CTRL = 'b00010110000000011110000010001011;
+	end
+	6'h0f: //lui
+	begin
+	   CTRL = 'b00010111000000000000000010001011;
+	end
+	6'h0f: //lui
+	begin
+	   CTRL = 'b00010111000000000000000010001011;
+	end
+	6'h0a: //slti
+	begin
+	   CTRL = 'b00010110000000001010000010001011;
+	end
+	6'h04: //beq
+	begin
+	   CTRL = 'b00000000000000001010000000001101;
+	end
+	6'h05: //bne
+	begin
+	   CTRL = 'b00000000000000001010000000001101;
+	end
+	6'h23: //lw
+	begin
+	   CTRL = 'b00010110000000000100100010001101;
+	end
+	
+	//J-type
+	6'h02: //jmp
+	begin
+	   CTRL = 'b00000000000000000000000000000001;
+	end
+	6'h03: //jal
+	begin
+	   CTRL = 'b00000110000000000101001010000001;
+	end
+	6'h1c: //pop
+	begin
+	   CTRL = 'b00000010100000000000000010001011;
+	end
+        endcase
+    end
+
+end
+endmodule
+
+
+//------------------------------------------------------------------------------------------
+// Module: PROC_SM
+// Output: STATE      : State of the processor
+//         
+// Input:  CLK        : Clock signal
+//         RST        : Reset signal
+//
+// INOUT: MEM_DATA    : Data to be read in from or write to the memory
+//
+// Notes: - Processor continuously cycle witnin fetch, decode, execute, 
+//          memory, write back state. State values are in the prj_definition.v
+//
+// Revision History:
+//
+// Version	Date		Who		email			note
+//------------------------------------------------------------------------------------------
+//  1.0     Sep 10, 2014	Kaushik Patra	kpatra@sjsu.edu		Initial creation
+//------------------------------------------------------------------------------------------
+module PROC_SM(STATE,CLK,RST);
+// list of inputs
+input CLK, RST;
+// list of outputs
+output [2:0] STATE;
+
+// TBD - take action on each +ve edge of clock
+reg [2:0] state;
+reg [2:0] next_state;
+
+assign STATE = state;
+
+//initial
+initial
+begin
+ state = 3'bxx;
+ next_state = `PROC_FETCH;
+end
+
+// rest signal
+always@(negedge RST)
+begin 
+  state = 3'bxx;
+  next_state = `PROC_FETCH;
+end
+
+//state switch
+always@(posedge CLK)
+begin 
+   case(STATE)
+	`PROC_FETCH : next_state = `PROC_DECODE;
+	`PROC_DECODE : next_state = `PROC_EXE;
+	`PROC_EXE : next_state = `PROC_MEM;
+	`PROC_MEM : next_state = `PROC_WB;
+	`PROC_WB : next_state = `PROC_FETCH;
+    endcase
+state = next_state;
+end
+endmodule
